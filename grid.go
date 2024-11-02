@@ -1,34 +1,41 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"time"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
 
 type Grid struct {
-	cells      [][]*Cell
-	rows       int
-	columns    int
-	lineLength int32
-	stateData  chan [][]*Cell
-	gridColor  rl.Color
+	cells        [][]*Cell
+	rows         int
+	columns      int
+	lineLength   int32
+	stateData    chan [][]*Cell
+	gridColor    rl.Color
+	lastUpdate   time.Time
+	updateDelta  time.Duration
+	currentState [][]*Cell
 }
 
 func NewGrid(screenWidth, screenHeight int, lineLength int32, color rl.Color) *Grid {
 	newGrid := &Grid{
-		rows:       screenHeight / int(lineLength),
-		columns:    screenWidth / int(lineLength),
-		lineLength: lineLength,
-		stateData:  make(chan [][]*Cell, 144),
-		gridColor:  color,
+		rows:        screenHeight / int(lineLength),
+		columns:     screenWidth / int(lineLength),
+		lineLength:  lineLength,
+		stateData:   make(chan [][]*Cell, 144),
+		gridColor:   color,
+		updateDelta: time.Second * 1 / 60,
 	}
 	newGrid.populate()
 	newGrid.neighbors()
+	newGrid.lastUpdate = time.Now()
 
 	return newGrid
 }
 
 func (g *Grid) Draw() {
-	state := <-g.stateData
-
-	for _, row := range state {
+	for _, row := range g.cells {
 		for _, cell := range row {
 			cell.Draw()
 		}
@@ -74,12 +81,9 @@ func (g *Grid) populate() {
 	}
 }
 
-func (g *Grid) Update() {
-	go g.NewState()
-}
-
-func (g *Grid) NewState() {
+func (g *Grid) CreateStates() {
 	for {
+
 		newState := make([][]int, 0)
 
 		for _, row := range g.cells {
@@ -104,5 +108,14 @@ func (g *Grid) NewState() {
 		}
 
 		g.stateData <- g.cells
+
+		g.lastUpdate = time.Now()
 	}
+}
+
+func (g *Grid) pullState() {
+	if len(g.stateData) > 0 {
+		g.currentState = <-g.stateData
+	}
+
 }
