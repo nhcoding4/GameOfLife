@@ -6,22 +6,22 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-func main() {
-	//scaleFactor := int32(110)
-	width := int32(1920)  //scaleFactor * 16
-	height := int32(1080) //scaleFactor * 9
+func main() {	
+	width := int32(1920)  
+	height := int32(1080) 
 	lineLength := int32(2)
 	gridColor := rl.White
 
 	rl.SetConfigFlags(rl.FlagMsaa4xHint)
 	rl.SetConfigFlags(rl.FlagWindowHighdpi)
-	rl.SetConfigFlags(rl.FlagVsyncHint)
 	rl.InitWindow(width, height, "Game of Life")
 
 	grid := NewGrid(int(width), int(height), lineLength, gridColor)
-	grid.Update()
+
+	go grid.CreateStates()
 
 	for !rl.WindowShouldClose() {
+		grid.pullState()
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
 		grid.Draw()
@@ -29,5 +29,4 @@ func main() {
 		rl.EndDrawing()
 	}
 	rl.CloseWindow()
-
 }
