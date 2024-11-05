@@ -84,26 +84,26 @@ func (g *Grid) populate() {
 func (g *Grid) CreateStates() {
 	for {
 
-		newState := make([][]int, 0)
+		newState := make([][]bool, 0)
 
-		for _, row := range g.cells {
-			newRow := make([]int, 0)
-			for _, cell := range row {
-				newRow = append(newRow, cell.AliveNeighbors())
+		for y, row := range g.cells {
+			newRow := make([]bool, 0)
+			for x, cell := range row {
+				switch cell.AliveNeighbors() {
+				case 3:
+					newRow = append(newRow, true)
+				case 2:
+					newRow = append(newRow, g.cells[y][x].active)
+				default:
+					newRow = append(newRow, false)
+				}
 			}
 			newState = append(newState, newRow)
 		}
 
 		for y, row := range g.cells {
-			for x, cell := range row {
-				switch newState[y][x] {
-				case 3:
-					cell.active = true
-				case 2:
-					continue
-				default:
-					cell.active = false
-				}
+			for x := range row {
+				g.cells[y][x].active = newState[y][x]
 			}
 		}
 
@@ -113,7 +113,7 @@ func (g *Grid) CreateStates() {
 	}
 }
 
-func (g *Grid) pullState() {
+func (g *Grid) PullState() {
 	if len(g.stateData) > 0 {
 		g.currentState = <-g.stateData
 	}
