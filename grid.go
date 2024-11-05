@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -13,23 +11,19 @@ type Grid struct {
 	lineLength   int32
 	stateData    chan [][]*Cell
 	gridColor    rl.Color
-	lastUpdate   time.Time
-	updateDelta  time.Duration
 	currentState [][]*Cell
 }
 
 func NewGrid(screenWidth, screenHeight int, lineLength int32, color rl.Color) *Grid {
 	newGrid := &Grid{
-		rows:        screenHeight / int(lineLength),
-		columns:     screenWidth / int(lineLength),
-		lineLength:  lineLength,
-		stateData:   make(chan [][]*Cell, 144),
-		gridColor:   color,
-		updateDelta: time.Second * 1 / 60,
+		rows:       screenHeight / int(lineLength),
+		columns:    screenWidth / int(lineLength),
+		lineLength: lineLength,
+		stateData:  make(chan [][]*Cell, 144),
+		gridColor:  color,
 	}
 	newGrid.populate()
 	newGrid.neighbors()
-	newGrid.lastUpdate = time.Now()
 
 	return newGrid
 }
@@ -83,7 +77,6 @@ func (g *Grid) populate() {
 
 func (g *Grid) CreateStates() {
 	for {
-
 		newState := make([][]bool, 0)
 
 		for y, row := range g.cells {
@@ -108,8 +101,6 @@ func (g *Grid) CreateStates() {
 		}
 
 		g.stateData <- g.cells
-
-		g.lastUpdate = time.Now()
 	}
 }
 
