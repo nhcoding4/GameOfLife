@@ -29,7 +29,7 @@ func NewGrid(screenWidth, screenHeight int, lineLength int32, color rl.Color) *G
 }
 
 func (g *Grid) Draw() {
-	for _, row := range g.cells {
+	for _, row := range g.currentState {
 		for _, cell := range row {
 			cell.Draw()
 		}
