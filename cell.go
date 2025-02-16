@@ -1,53 +1,38 @@
 package main
 
-import (
-	"math/rand"
+import "math/rand"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
-)
+// --------------------------------------------------------------------------------------------------------------------
 
 type Cell struct {
-	x, y, cellSize, gridX, gridY int32
-	active                       bool
-	neighbors                    []*Cell
-	color                        rl.Color
+	gridX, gridY int32
+	neighbours   []*Cell
+	active       bool
 }
 
-func newCell(x, y, cellSize, gridX, gridY int32, color rl.Color) *Cell {
-	cell := &Cell{
-		x:        x,
-		y:        y,
-		cellSize: cellSize,
-		gridX:    gridX,
-		gridY:    gridY,
-		color:    color,
+// --------------------------------------------------------------------------------------------------------------------
+
+func newCell(gridX, gridY int32) Cell {
+	return Cell{
+		neighbours: make([]*Cell, 0),
+		gridX:      gridX,
+		gridY:      gridY,
+		active:     rand.Intn(100) <= 10,
 	}
-	cell.setStartingStatus()
-
-	return cell
 }
 
-func (c *Cell) activeNeighbors() int32 {
-	var count int32 = 0
+// --------------------------------------------------------------------------------------------------------------------
 
-	for _, cell := range c.neighbors {
+func (c *Cell) countLiveNeighbours() uint8 {
+	var alive uint8 = 0
+
+	for _, cell := range c.neighbours {
 		if cell.active {
-			count++
+			alive += 1
 		}
 	}
 
-	return count
+	return alive
 }
 
-func (c *Cell) draw() {
-	rl.DrawRectangle(c.x, c.y, c.cellSize, c.cellSize, c.color)
-}
-
-func (c *Cell) setStartingStatus() {
-	randomNumber := rand.Intn(100)
-	if randomNumber <= 10 {
-		c.active = true
-	} else {
-		c.active = false
-	}
-}
+// --------------------------------------------------------------------------------------------------------------------

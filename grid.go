@@ -1,130 +1,150 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"sync"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
+
+// --------------------------------------------------------------------------------------------------------------------
 
 type Grid struct {
-	rows, columns, cellSize int32
-	color                   rl.Color
-	cells                   [][]*Cell
+	grid                    [][]Cell
+	gridLength              int
 	nextState               [][]bool
-	currentState            [][]bool
-	stateChan               chan [][]bool
+	columns, rows, cellsize int32
+	stateChannel            chan ([][]bool)
+	waitGroup               sync.WaitGroup
 }
 
-func newGrid(width, height, cellSize int32, color rl.Color) *Grid {
-	newGrid := &Grid{
-		rows:      height / cellSize,
-		columns:   width / cellSize,
-		cellSize:  cellSize,
-		color:     color,
-		stateChan: make(chan [][]bool, 1000),
-	}
-	newGrid.makeStateVec()
-	newGrid.makeCellGrid()
-	newGrid.findCellNeighbors()
+// --------------------------------------------------------------------------------------------------------------------
 
-	return newGrid
+func newGrid(width, height, cellSize int32, stateChan chan [][]bool) *Grid {
+	rows := height / cellSize
+	columns := width / cellSize
+	grid := &Grid{columns: columns, rows: rows, cellsize: cellSize, stateChannel: stateChan}
+	grid.init()
+	grid.gridLength = len(grid.grid)
+
+	return grid
 }
 
-func (g *Grid) makeStateVec() {
-	for range g.rows {
-		newRow := make([]bool, 0)
-		newRow2 := make([]bool, 0)
-		for range g.columns {
-			newRow = append(newRow, false)
-			newRow2 = append(newRow2, false)
-		}
-		g.nextState = append(g.nextState, newRow)
-		g.currentState = append(g.currentState, newRow2)
-	}
+// --------------------------------------------------------------------------------------------------------------------
+
+func (g *Grid) init() {
+	g.initArrays()
+	g.setNeighbours()
 }
 
-func (g *Grid) makeCellGrid() {
+// --------------------------------------------------------------------------------------------------------------------
+
+func (g *Grid) initArrays() {
+	newGrid := make([][]Cell, 0)
+	newState := make([][]bool, 0)
+
 	for y := range g.rows {
-		newRow := make([]*Cell, 0)
+		newGridRow := make([]Cell, 0)
+		newStateRow := make([]bool, 0)
+
 		for x := range g.columns {
-			newRow = append(newRow, newCell(
-				x*g.cellSize+1,
-				y*g.cellSize+1,
-				g.cellSize-1,
-				x,
-				y,
-				g.color,
-			))
+			cell := newCell(x, y)
+			newGridRow = append(newGridRow, cell)
+			newStateRow = append(newStateRow, false)
 		}
-		g.cells = append(g.cells, newRow)
+
+		newGrid = append(newGrid, newGridRow)
+		newState = append(newState, newStateRow)
 	}
+
+	g.grid = newGrid
+	g.nextState = newState
 }
 
-func (g *Grid) findCellNeighbors() {
-	offsets := [][]int32{{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
+// --------------------------------------------------------------------------------------------------------------------
+
+func (g *Grid) setNeighbours() {
+	offsets := []rl.Vector2{
+		{X: -1, Y: 0},
+		{X: 1, Y: 0},
+		{X: 0, Y: -1},
+		{X: 0, Y: 1},
+		{X: -1, Y: -1},
+		{X: -1, Y: 1},
+		{X: 1, Y: -1},
+		{X: 1, Y: 1},
+	}
 
 	for y := range g.rows {
 		for x := range g.columns {
 			for _, offset := range offsets {
-				xOffset := (x + offset[0] + g.columns) % g.columns
-				yOffset := (y + offset[1] + g.rows) % g.rows
+				cellX := (x + g.columns + int32(offset.X)) % g.columns
+				cellY := (y + g.rows + int32(offset.Y)) % g.rows
 
-				g.cells[y][x].neighbors = append(g.cells[y][x].neighbors, g.cells[yOffset][xOffset])
+				g.grid[y][x].neighbours = append(g.grid[y][x].neighbours, &g.grid[cellY][cellX])
 			}
 		}
 	}
 }
 
-func (g *Grid) createNewStates() {
-	for {
-		for y, row := range g.cells {
-			for x, cell := range row {
-				if !cell.active {
-					continue
-				}
+// --------------------------------------------------------------------------------------------------------------------
+// Hot path
+// --------------------------------------------------------------------------------------------------------------------
 
-				activeNeighbors := cell.activeNeighbors()
+func (g *Grid) update() {
+	g.calcNewState()
+	g.applyState()
+}
 
-				switch activeNeighbors {
-				case 3:
-					g.nextState[y][x] = true
-				case 2:
-					g.nextState[y][x] = cell.active
-				default:
-					g.nextState[y][x] = false
-				}
+// --------------------------------------------------------------------------------------------------------------------
 
-				if activeNeighbors == 0 {
-					continue
-				}
+func (g *Grid) calcNewState() {
+	g.waitGroup.Add(g.gridLength)
 
-				for _, neighbor := range cell.neighbors {
-					if neighbor.activeNeighbors() == 3 {
-						g.nextState[neighbor.gridY][neighbor.gridX] = true
-					}
-				}
+	for y := range g.grid {
+		g.calcRow(y)
+	}
 
-			}
+	g.waitGroup.Wait()
+
+	g.stateChannel <- g.nextState
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+func (g *Grid) calcRow(y int) {
+	for x, cell := range g.grid[y] {
+		if !cell.active {
+			continue
 		}
 
-		g.stateChan <- g.nextState
+		liveNeighbours := cell.countLiveNeighbours()
 
-		for y, row := range g.cells {
-			for x := range row {
-				g.cells[y][x].active = g.nextState[y][x]
+		switch liveNeighbours {
+		case 3:
+			g.nextState[y][x] = true
+		case 2:
+		default:
+			g.nextState[y][x] = false
+		}
+
+		for _, neighbour := range cell.neighbours {
+			if neighbour.countLiveNeighbours() == 3 {
+				g.nextState[neighbour.gridY][neighbour.gridX] = true
 			}
 		}
 	}
+
+	g.waitGroup.Done()
 }
 
-func (g *Grid) pullState() {
-	if len(g.stateChan) > 0 {
-		g.currentState = <-g.stateChan
-	}
-}
+// --------------------------------------------------------------------------------------------------------------------
 
-func (g *Grid) draw() {
+func (g *Grid) applyState() {
 	for y := range g.rows {
 		for x := range g.columns {
-			if g.currentState[y][x] {
-				g.cells[y][x].draw()
-			}
+			g.grid[y][x].active = g.nextState[y][x]
 		}
 	}
 }
+
+// --------------------------------------------------------------------------------------------------------------------
