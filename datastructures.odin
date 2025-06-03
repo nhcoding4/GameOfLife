@@ -14,8 +14,10 @@ createGrid :: proc(randomise: b8) -> [][]b8 {
 
 	for y in 0 ..< Rows {
 		grid[y] = make([]b8, Columns)
+		if !randomise { continue } 
+
 		for x in 0 ..< Columns {
-			if randomise && rand.int31_max(100) < StartingAliveChance {
+			if rand.int31_max(100) < StartingAliveChance {
 				grid[y][x] = true
 			}
 		}
