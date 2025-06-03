@@ -94,10 +94,7 @@ update :: proc(channel: chan.Chan([][]b8, .Send)) {
 
 		gridAPtr, gridBPtr = swapPtr(gridAPtr, gridBPtr)
 
-		ok := chan.send(channel, gridAPtr^)
-		if !ok {
-			break
-		}
+		chan.send(channel, gridAPtr^)
 	}
 }
 
