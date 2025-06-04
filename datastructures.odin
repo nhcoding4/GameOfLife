@@ -28,13 +28,13 @@ createGrid :: proc(randomise: b8) -> [][]b8 {
 
 // ------------------------------------------------------------------------------------------------
 
-createOffsetData :: proc() -> [][]#soa[8]Vector2(u16) {
+createOffsetData :: proc() -> [][][8]Vector2(u16) {
 	offsets := []Vector2(int){{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
 
-	calculatedOffsets := make([][]#soa[8]Vector2(u16), Rows)
+	calculatedOffsets := make([][][8]Vector2(u16), Rows)
 
 	for y in 0 ..< Rows {
-		calculatedOffsets[y] = make([]#soa[8]Vector2(u16), Columns)
+		calculatedOffsets[y] = make([][8]Vector2(u16), Columns)
 
 		for x in 0 ..< Columns {
 			for offset, i in offsets {
