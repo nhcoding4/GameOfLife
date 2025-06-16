@@ -1,7 +1,5 @@
 package main
 
-import "core:fmt"
-import "core:math/rand"
 import "core:sync/chan"
 
 // ------------------------------------------------------------------------------------------------
